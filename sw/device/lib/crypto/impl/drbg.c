@@ -185,10 +185,8 @@ static otcrypto_status_t generate(hardened_bool_t fips_check,
 
   entropy_seed_material_t seed_material;
   seed_material_construct(additional_input, &seed_material);
-  HARDENED_TRY(entropy_csrng_generate(&seed_material, drbg_output.data,
-                                      drbg_output.len, fips_check));
-
-  return OTCRYPTO_OK;
+  return entropy_csrng_generate(&seed_material, drbg_output.data,
+                                drbg_output.len, fips_check);
 }
 
 otcrypto_status_t otcrypto_drbg_generate(
