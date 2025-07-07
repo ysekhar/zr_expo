@@ -114,8 +114,8 @@ p384_random_scalar:
      w4 <= w4 + 1 = x
      w16 <= w4 */
   bn.addi   w4, w4, 1
-  bn.mov    w16, w4      /* prepare for p384_mulmod488x128_n call below */
-  bn.addi   w31, w31, 0  /* dummy instruction to clear flags */
+  bn.mov    w16, w4        /* prepare for p384_mulmod488x128_n call below */
+  bn.add    w31, w31, w31  /* dummy instruction to clear flags */
 
   /* N.B. After the call to p384_mulmod488x128_n below, we immediately move
      the masking value in w4 back into the (clobbered) w16 so as to separate
