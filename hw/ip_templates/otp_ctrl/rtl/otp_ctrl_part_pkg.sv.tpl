@@ -97,6 +97,7 @@ package otp_ctrl_part_pkg;
     logic integrity;        // Whether the partition is integrity protected
     logic iskeymgr_creator; // Whether the partition has any creator key material
     logic iskeymgr_owner;   // Whether the partition has any owner key material
+    logic zeroizable;       // Whether the partition can be zeroized
   } part_info_t;
 
   parameter part_info_t PartInfoDefault = '{
@@ -111,7 +112,8 @@ package otp_ctrl_part_pkg;
       read_lock:        1'b0,
       integrity:        1'b0,
       iskeymgr_creator: 1'b0,
-      iskeymgr_owner:   1'b0
+      iskeymgr_owner:   1'b0,
+      zeroizable:       1'b0
   };
 
   ////////////////////////
@@ -133,7 +135,8 @@ package otp_ctrl_part_pkg;
       read_lock:        1'b${"1" if part["read_lock"].lower() == "digest" else "0"},
       integrity:        1'b${"1" if part["integrity"] else "0"},
       iskeymgr_creator: 1'b${"1" if part["iskeymgr_creator"] else "0"},
-      iskeymgr_owner:   1'b${"1" if part["iskeymgr_owner"] else "0"}
+      iskeymgr_owner:   1'b${"1" if part["iskeymgr_owner"] else "0"},
+      zeroizable:       1'b${"1" if part["zeroizable"] else "0"}
     }${"" if loop.last else ","}
 % endfor
   };
@@ -218,16 +221,33 @@ package otp_ctrl_part_pkg;
 % endfor
   };
 
-<% offset =  int(otp_mmap["partitions"][-1]["offset"]) + int(otp_mmap["partitions"][-1]["size"]) %>
-  // OTP invalid partition default for buffered partitions.
-  parameter logic [${offset * 8 - 1}:0] PartInvDefault = ${offset * 8}'({
+## The default value as a packed sequence of bits.
+## Packed sequences assign the leftmost literal to the highest array
+## position, so all partitions and items are traversed backwards.
+
+<%
+last_part = otp_mmap["partitions"][-1]
+total_size = int(last_part["offset"]) + int(last_part["size"])
+## prev_offset is kept pointing at the last item's offset
+prev_offset = total_size
+%>\
+  // OTP invalid partition default for all partitions.
+  parameter logic [${total_size * 8 - 1}:0] PartInvDefault = ${total_size * 8}'({
+  ## Iterate backwards since arrays are laid out from top partitions down.
   % for k, part in enumerate(otp_mmap["partitions"][::-1]):
+    // ${part["name"]} default
     ${int(part["size"])*8}'({
     % for item in part["items"][::-1]:
-      % if offset != item['offset'] + item['size']:
-      ${"{}'h{:0X}".format((offset - item['size'] - item['offset']) * 8, 0)}, // unallocated space<% offset = item['offset'] + item['size'] %>
+      // ${item["name"]}
+      % if prev_offset > item["offset"] + item["size"]:
+      ${"{}'h{:0X}".format((prev_offset - item["size"] - item["offset"]) * 8, 0)}, // unallocated ${prev_offset - item["offset"] - item["size"]} bytes
+<% prev_offset = item["offset"] + item["size"] %>\
       % endif
-      ${"{}'h{:0X}".format(item["size"] * 8, item["inv_default"])}${("\n    })," if k < len(otp_mmap["partitions"])-1 else "\n    })});") if loop.last else ","}<% offset -= item['size'] %>
+<%
+sep = ("," if not loop.last else ("\n    })," if k < len(otp_mmap["partitions"])-1 else "\n    })});"))
+%>\
+      ${"{}'h{:0X}".format(item["size"] * 8, item["inv_default"])}${sep}
+<% prev_offset -= item["size"] %>\
     % endfor
   % endfor
 
