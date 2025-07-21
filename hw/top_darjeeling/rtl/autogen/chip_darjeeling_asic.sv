@@ -1159,13 +1159,8 @@ module chip_darjeeling_asic #(
   assign otp_cfg = otp_macro_pkg::OTP_CFG_DEFAULT;
 
   // entropy source interface
-  // The entropy source pacakge definition should eventually be moved to es
-  entropy_src_pkg::entropy_src_hw_if_req_t entropy_src_hw_if_req;
-  entropy_src_pkg::entropy_src_hw_if_rsp_t entropy_src_hw_if_rsp;
-
-  // entropy distribution network
-  edn_pkg::edn_req_t ast_edn_edn_req;
-  edn_pkg::edn_rsp_t ast_edn_edn_rsp;
+  logic es_rng_enable, es_rng_valid;
+  logic [ast_pkg::EntropyStreams-1:0] es_rng_bit;
 
   // alerts interface
   ast_pkg::ast_alert_rsp_t ast_alert_rsp;
@@ -1282,7 +1277,6 @@ module chip_darjeeling_asic #(
   prim_mubi_pkg::mubi4_t ast_init_done;
 
   ast #(
-    .EntropyStreams(ast_pkg::EntropyStreams),
     .AdcChannels(ast_pkg::AdcChannels),
     .AdcDataWidth(ast_pkg::AdcDataWidth),
     .UsbCalibWidth(ast_pkg::UsbCalibWidth),
@@ -1315,12 +1309,10 @@ module chip_darjeeling_asic #(
     .clk_ast_tlul_i (clkmgr_aon_clocks.clk_io_div4_infra),
     .clk_ast_adc_i (clkmgr_aon_clocks.clk_aon_peri),
     .clk_ast_alert_i (clkmgr_aon_clocks.clk_io_div4_secure),
-    .clk_ast_es_i (clkmgr_aon_clocks.clk_main_secure),
     .clk_ast_rng_i (clkmgr_aon_clocks.clk_main_secure),
     .rst_ast_tlul_ni (rstmgr_aon_resets.rst_lc_io_div4_n[rstmgr_pkg::Domain0Sel]),
     .rst_ast_adc_ni (rstmgr_aon_resets.rst_lc_aon_n[rstmgr_pkg::DomainAonSel]),
     .rst_ast_alert_ni (rstmgr_aon_resets.rst_lc_io_div4_n[rstmgr_pkg::Domain0Sel]),
-    .rst_ast_es_ni (rstmgr_aon_resets.rst_lc_n[rstmgr_pkg::Domain0Sel]),
     .rst_ast_rng_ni (rstmgr_aon_resets.rst_lc_n[rstmgr_pkg::Domain0Sel]),
     .clk_ast_ext_i         ( ext_clk ),
 
@@ -1361,17 +1353,16 @@ module chip_darjeeling_asic #(
     .clk_src_usb_en_i      ( '0 ),
     .clk_src_usb_o         (    ),
     .clk_src_usb_val_o     (    ),
-    // entropy_src
-    .es_req_i              ( entropy_src_hw_if_req ),
-    .es_rsp_o              ( entropy_src_hw_if_rsp ),
     // adc
     .adc_pd_i              ( '0 ),
     .adc_chnsel_i          ( '0 ),
     .adc_d_o               (    ),
     .adc_d_val_o           (    ),
-    // entropy
-    .entropy_rsp_i         ( ast_edn_edn_rsp ),
-    .entropy_req_o         ( ast_edn_edn_req ),
+    // rng
+    .rng_en_i              ( es_rng_enable ),
+    .rng_fips_i            ( es_rng_fips   ),
+    .rng_val_o             ( es_rng_valid  ),
+    .rng_b_o               ( es_rng_bit    ),
     // alerts
     .alert_rsp_i           ( ast_alert_rsp  ),
     .alert_req_o           ( ast_alert_req  ),
@@ -1670,8 +1661,6 @@ module chip_darjeeling_asic #(
     .sck_monitor_o                     ( sck_monitor                ),
     .pwrmgr_ast_req_o                  ( base_ast_pwr               ),
     .pwrmgr_ast_rsp_i                  ( ast_base_pwr               ),
-    .ast_edn_req_i                     ( ast_edn_edn_req            ),
-    .ast_edn_rsp_o                     ( ast_edn_edn_rsp            ),
     .ast_tl_req_o                      ( base_ast_bus               ),
     .ast_tl_rsp_i                      ( ast_base_bus               ),
     .obs_ctrl_i                        ( obs_ctrl                   ),
@@ -1703,8 +1692,6 @@ module chip_darjeeling_asic #(
     .soc_wkup_async_i                  ( 1'b0                       ),
     .soc_rst_req_async_i               ( soc_rst_req_async          ),
     .soc_lsio_trigger_i                ( '0                         ),
-    .entropy_src_hw_if_req_o           ( entropy_src_hw_if_req      ),
-    .entropy_src_hw_if_rsp_i           ( entropy_src_hw_if_rsp      ),
     .mbx0_doe_intr_en_o                (                            ),
     .mbx0_doe_intr_o                   (                            ),
     .mbx0_doe_intr_support_o           (                            ),
@@ -1745,6 +1732,10 @@ module chip_darjeeling_asic #(
     .mbx_pcie1_doe_intr_o              (                            ),
     .mbx_pcie1_doe_intr_support_o      (                            ),
     .mbx_pcie1_doe_async_msg_support_o (                            ),
+    .es_rng_enable_o                   ( es_rng_enable              ),
+    .es_rng_valid_i                    ( es_rng_valid               ),
+    .es_rng_bit_i                      ( es_rng_bit                 ),
+    .es_rng_fips_o                     ( es_rng_fips                ),
     .io_clk_byp_req_o                  ( io_clk_byp_req             ),
     .io_clk_byp_ack_i                  ( io_clk_byp_ack             ),
     .all_clk_byp_req_o                 ( all_clk_byp_req            ),

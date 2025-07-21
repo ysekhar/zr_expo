@@ -10,6 +10,8 @@ module rom_ctrl
 #(
   parameter                       BootRomInitFile = "",
   parameter logic [NumAlerts-1:0] AlertAsyncOn = {NumAlerts{1'b1}},
+  // Number of cycles a differential skew is tolerated on the alert signal
+  parameter int unsigned          AlertSkewCycles = 1,
   parameter bit [63:0]            RndCnstScrNonce = '0,
   parameter bit [127:0]           RndCnstScrKey = '0,
   // ROM size in bytes
@@ -435,16 +437,17 @@ module rom_ctrl
   // Alert generation ==========================================================
 
   logic [NumAlerts-1:0] alert_test;
-  assign alert_test[AlertFatal] = reg2hw.alert_test.q &
-                                  reg2hw.alert_test.qe;
+  assign alert_test[AlertFatalIdx] = reg2hw.alert_test.q &
+                                     reg2hw.alert_test.qe;
 
   logic [NumAlerts-1:0] alerts;
-  assign alerts[AlertFatal] = bus_integrity_error | checker_alert | mux_alert;
+  assign alerts[AlertFatalIdx] = bus_integrity_error | checker_alert | mux_alert;
 
   for (genvar i = 0; i < NumAlerts; i++) begin: gen_alert_tx
     prim_alert_sender #(
       .AsyncOn(AlertAsyncOn[i]),
-      .IsFatal(i == AlertFatal)
+      .SkewCycles(AlertSkewCycles),
+      .IsFatal(i == AlertFatalIdx)
     ) u_alert_sender (
       .clk_i,
       .rst_ni,
@@ -479,15 +482,15 @@ module rom_ctrl
     `ASSERT_PRIM_FSM_ERROR_TRIGGER_ALERT_IN(CompareFsmAlert_A,
                                             gen_fsm_scramble_enabled.
                                             u_checker_fsm.u_compare.u_state_regs,
-                                            gen_alert_tx[AlertFatal].u_alert_sender.alert_req_i)
+                                            gen_alert_tx[AlertFatalIdx].u_alert_sender.alert_req_i)
     `ASSERT_PRIM_FSM_ERROR_TRIGGER_ALERT(CheckerFsmAlert_A,
                                          gen_fsm_scramble_enabled.
                                          u_checker_fsm.u_state_regs,
-                                         alert_tx_o[AlertFatal])
+                                         alert_tx_o[AlertFatalIdx])
     `ASSERT_PRIM_COUNT_ERROR_TRIGGER_ALERT_IN(CompareAddrCtrCheck_A,
-                                              gen_fsm_scramble_enabled.
-                                              u_checker_fsm.u_compare.u_prim_count_addr,
-                                              gen_alert_tx[AlertFatal].u_alert_sender.alert_req_i)
+      gen_fsm_scramble_enabled.
+      u_checker_fsm.u_compare.u_prim_count_addr,
+      gen_alert_tx[AlertFatalIdx].u_alert_sender.alert_req_i)
   end
 
   // The pwrmgr_data_o output (the "done" and "good" signals) should have a known value when out of
@@ -548,32 +551,32 @@ module rom_ctrl
   // Alert assertions for reg_we onehot check
   `ASSERT_PRIM_REG_WE_ONEHOT_ERROR_TRIGGER_ALERT_IN(RegWeOnehotCheck_A,
                                                     u_reg_regs,
-                                                    (gen_alert_tx[AlertFatal].
+                                                    (gen_alert_tx[AlertFatalIdx].
                                                      u_alert_sender.alert_req_i))
 
   // Alert assertions for redundant counters.
   `ASSERT_PRIM_COUNT_ERROR_TRIGGER_ALERT_IN(RspFifoWptrCheck_A,
                                             u_tl_adapter_rom.u_rspfifo.gen_normal_fifo.
                                             u_fifo_cnt.gen_secure_ptrs.u_wptr,
-                                            gen_alert_tx[AlertFatal].u_alert_sender.alert_req_i)
+                                            gen_alert_tx[AlertFatalIdx].u_alert_sender.alert_req_i)
   `ASSERT_PRIM_COUNT_ERROR_TRIGGER_ALERT_IN(RspFifoRptrCheck_A,
                                             u_tl_adapter_rom.u_rspfifo.gen_normal_fifo.
                                             u_fifo_cnt.gen_secure_ptrs.u_rptr,
-                                            gen_alert_tx[AlertFatal].u_alert_sender.alert_req_i)
+                                            gen_alert_tx[AlertFatalIdx].u_alert_sender.alert_req_i)
   `ASSERT_PRIM_COUNT_ERROR_TRIGGER_ALERT_IN(SramReqFifoWptrCheck_A,
                                             u_tl_adapter_rom.u_sramreqfifo.gen_normal_fifo.
                                             u_fifo_cnt.gen_secure_ptrs.u_wptr,
-                                            gen_alert_tx[AlertFatal].u_alert_sender.alert_req_i)
+                                            gen_alert_tx[AlertFatalIdx].u_alert_sender.alert_req_i)
   `ASSERT_PRIM_COUNT_ERROR_TRIGGER_ALERT_IN(SramReqFifoRptrCheck_A,
                                             u_tl_adapter_rom.u_sramreqfifo.gen_normal_fifo.
                                             u_fifo_cnt.gen_secure_ptrs.u_rptr,
-                                            gen_alert_tx[AlertFatal].u_alert_sender.alert_req_i)
+                                            gen_alert_tx[AlertFatalIdx].u_alert_sender.alert_req_i)
   `ASSERT_PRIM_COUNT_ERROR_TRIGGER_ALERT_IN(ReqFifoWptrCheck_A,
                                             u_tl_adapter_rom.u_reqfifo.gen_normal_fifo.
                                             u_fifo_cnt.gen_secure_ptrs.u_wptr,
-                                            gen_alert_tx[AlertFatal].u_alert_sender.alert_req_i)
+                                            gen_alert_tx[AlertFatalIdx].u_alert_sender.alert_req_i)
   `ASSERT_PRIM_COUNT_ERROR_TRIGGER_ALERT_IN(ReqFifoRptrCheck_A,
                                             u_tl_adapter_rom.u_reqfifo.gen_normal_fifo.
                                             u_fifo_cnt.gen_secure_ptrs.u_rptr,
-                                            gen_alert_tx[AlertFatal].u_alert_sender.alert_req_i)
+                                            gen_alert_tx[AlertFatalIdx].u_alert_sender.alert_req_i)
 endmodule

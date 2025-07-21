@@ -11,6 +11,8 @@ module spi_device
   import spi_device_reg_pkg::*;
 #(
   parameter logic [NumAlerts-1:0] AlertAsyncOn         = {NumAlerts{1'b1}},
+  // Number of cycles a differential skew is tolerated on the alert signal
+  parameter int unsigned          AlertSkewCycles      = 1,
   parameter spi_device_pkg::sram_type_e SramType       = spi_device_pkg::DefaultSramType,
   parameter bit                             EnableRacl                    = 1'b0,
   parameter bit                             RaclErrorRsp                  = EnableRacl,
@@ -295,7 +297,7 @@ module spi_device
   // Synchronous clear of read buffer tracking.
   logic readbuf_clr;
 
-  // Passthrouth config signals
+  // Passthrough config signals
   logic [255:0] cmd_filter;
 
   logic [31:0] addr_swap_mask;
@@ -1940,6 +1942,7 @@ module spi_device
   for (genvar i = 0; i < NumAlerts; i++) begin : gen_alert_tx
     prim_alert_sender #(
       .AsyncOn(AlertAsyncOn[i]),
+      .SkewCycles(AlertSkewCycles),
       .IsFatal(1'b1)
     ) u_prim_alert_sender (
       .clk_i,

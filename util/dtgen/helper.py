@@ -349,7 +349,8 @@ class TopHelper:
         # List all muxed pads directly from the top.
         pads = [pad for pad in self.top['pinout']['pads'] if pad['connection'] == 'muxed']
         # List direct pads from the pinmux to avoid pins which are not relevant.
-        pads += [pad for pad in self.top['pinmux']['ios'] if pad['connection'] != 'muxed']
+        if self.top.get("pinmux", {}).get("ios"):
+            pads += [pad for pad in self.top['pinmux']['ios'] if pad['connection'] != 'muxed']
 
         # List all pads and put them in an enum.
         self.pad_enum = self._enum_type(Name([]), self.DT_PAD_NAME)
@@ -386,6 +387,12 @@ class TopHelper:
         for clock in clocks["srcs"] + clocks["derived_srcs"]:
             clock_name = Name.from_snake_case(clock["name"])
             self.clock_enum.add_constant(clock_name, "clock {}".format(clock["name"]))
+
+        # Unmanaged clocks
+        for clock in self.top['unmanaged_clocks']:
+            clock_name = Name.from_snake_case(clock)
+            self.clock_enum.add_constant(clock_name)
+
         self.clock_enum.add_count_constant("Number of clocks")
 
         # List of all reset nodes and put them in an enum.
@@ -394,6 +401,12 @@ class TopHelper:
         for reset_node in self.top["resets"]["nodes"]:
             reset_name = Name.from_snake_case(reset_node["name"])
             self.reset_enum.add_constant(reset_name, "Reset node {}".format(reset_node["name"]))
+
+        # Unmanaged resets
+        for reset in self.top['unmanaged_resets']:
+            reset_name = Name.from_snake_case(reset)
+            self.reset_enum.add_constant(reset_name)
+
         self.reset_enum.add_count_constant("Number of resets")
 
         # Create structure to describe a peripheral I/O and a pad.
@@ -1014,7 +1027,7 @@ This value is undefined if the block is not connected to the Alert Handler."""
             periph_ios = OrderedDict()
             for (sig, (port, idx)) in self._device_signals.items():
                 found = False
-                for conn in self.top["pinmux"]["ios"]:
+                for conn in self.top.get("pinmux", {}).get("ios", []):
                     if conn["name"] != m["name"] + "_" + port or idx != conn["idx"]:
                         continue
                     if found:

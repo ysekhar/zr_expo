@@ -33,6 +33,11 @@ module prim_alert_tb;
   `else
     localparam bit IsFatal = 0;
   `endif
+  `ifdef IS_3_CYCLE_SKEW
+    localparam int unsigned SkewCycles = 3;
+  `else
+    localparam int unsigned SkewCycles = 1;
+  `endif
 
   localparam time ClkPeriod  = 10_000;
   localparam int  WaitCycle = IsAsync ? 3 : 1;
@@ -85,6 +90,7 @@ module prim_alert_tb;
   prim_mubi_pkg::mubi4_t     init_trig = prim_mubi_pkg::MuBi4False;
   prim_alert_sender #(
     .AsyncOn(IsAsync),
+    .SkewCycles(SkewCycles),
     .IsFatal(IsFatal)
   ) i_alert_sender (
     .clk_i(clk),
@@ -98,7 +104,8 @@ module prim_alert_tb;
   );
 
   prim_alert_receiver #(
-    .AsyncOn(IsAsync)
+    .AsyncOn(IsAsync),
+    .SkewCycles(SkewCycles)
   ) i_alert_receiver (
     .clk_i(clk),
     .rst_ni(rst_n),

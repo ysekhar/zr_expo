@@ -345,6 +345,8 @@ module top_${top["name"]} #(
   // OTP HW_CFG Broadcast signals.
   // TODO(#6713): The actual struct breakout and mapping currently needs to
   // be performed by hand.
+  assign csrng_otp_en_csrng_sw_app_read =
+      otp_ctrl_otp_broadcast.hw_cfg1_data.en_csrng_sw_app_read;
   assign sram_ctrl_main_otp_en_sram_ifetch =
       otp_ctrl_otp_broadcast.hw_cfg1_data.en_sram_ifetch;
   assign lc_ctrl_otp_device_id =
@@ -521,10 +523,11 @@ else:
 slice = f"{lo+w-1}:{lo}"
 %>\
   % if 'outgoing_alert' in m:
-    .AlertAsyncOn(AsyncOnOutgoingAlert${alert_group.capitalize()}[${slice}])${"," if m["param_list"] else ""}
+    .AlertAsyncOn(AsyncOnOutgoingAlert${alert_group.capitalize()}[${slice}]),
   % else:
-    .AlertAsyncOn(alert_handler_reg_pkg::AsyncOn[${slice}])${"," if m["param_list"] else ""}
+    .AlertAsyncOn(alert_handler_reg_pkg::AsyncOn[${slice}]),
   % endif
+    .AlertSkewCycles(top_pkg::AlertSkewCycles)${"," if m["param_list"] else ""}
   % endif
     % for i in m["param_list"]:
     .${i["name"]}(${i["name_top" if i.get("expose") == "true" or i.get("randtype", "none") != "none" else "default"]})${"," if not loop.last else ""}

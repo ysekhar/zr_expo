@@ -7,6 +7,8 @@ module ac_range_check
   import ac_range_check_reg_pkg::*;
 #(
   parameter logic [NumAlerts-1:0]           AlertAsyncOn              = {NumAlerts{1'b1}},
+  // Number of cycles a differential skew is tolerated on the alert signal
+  parameter int unsigned                    AlertSkewCycles           = 1,
   parameter bit                             RangeCheckErrorRsp        = 1'b1,
   parameter bit                             EnableRacl                = 1'b0,
   parameter bit                             RaclErrorRsp              = EnableRacl,
@@ -27,6 +29,7 @@ module ac_range_check
   input  tlul_pkg::tl_h2d_t                         tl_i,
   output tlul_pkg::tl_d2h_t                         tl_o,
   // Inter module signals
+  // SEC_CM: INTERSIG.MUBI
   input prim_mubi_pkg::mubi8_t                      range_check_overwrite_i,
   // Incoming TLUL interface
   input  tlul_pkg::tl_h2d_t                         ctn_tl_h2d_i,
@@ -43,6 +46,8 @@ module ac_range_check
   //////////////////////////////////////////////////////////////////////////////
   logic reg_intg_error, shadowed_storage_err, shadowed_update_err;
   // SEC_CM: BUS.INTEGRITY
+  // SEC_CM: CTRL.MUBI
+  // SEC_CM: CTRL.REGWEN_MUBI
   ac_range_check_reg_top #(
     .EnableRacl(EnableRacl),
     .RaclErrorRsp(RaclErrorRsp),
@@ -68,21 +73,20 @@ module ac_range_check
   logic [NumAlerts-1:0] alert_test, alert;
   logic deny_cnt_error;
 
-  assign alert[0]  = shadowed_update_err;
-  assign alert[1]  = reg_intg_error | shadowed_storage_err | deny_cnt_error;
+  assign alert[AlertRecovCtrlUpdateErrIdx]  = shadowed_update_err;
+  assign alert[AlertFatalFaultIdx]          = reg_intg_error | shadowed_storage_err |
+                                              deny_cnt_error;
 
-  assign alert_test = {
-    reg2hw.alert_test.fatal_fault.q &
-    reg2hw.alert_test.fatal_fault.qe,
-    reg2hw.alert_test.recov_ctrl_update_err.q &
-    reg2hw.alert_test.recov_ctrl_update_err.qe
-  };
+  assign alert_test[AlertFatalFaultIdx] = reg2hw.alert_test.fatal_fault.q &
+                                          reg2hw.alert_test.fatal_fault.qe;
+  assign alert_test[AlertRecovCtrlUpdateErrIdx] = reg2hw.alert_test.recov_ctrl_update_err.q &
+                                                  reg2hw.alert_test.recov_ctrl_update_err.qe;
 
-  localparam logic [NumAlerts-1:0] IsFatal = {1'b1, 1'b0};
   for (genvar i = 0; i < NumAlerts; i++) begin : gen_alert_tx
     prim_alert_sender #(
       .AsyncOn(AlertAsyncOn[i]),
-      .IsFatal(IsFatal[i])
+      .SkewCycles(AlertSkewCycles),
+      .IsFatal(i == AlertFatalFaultIdx)
     ) u_prim_alert_sender (
       .clk_i         ( clk_i         ),
       .rst_ni        ( rst_ni        ),
@@ -277,6 +281,7 @@ module ac_range_check
   logic log_first_deny;
   assign log_first_deny = deny_cnt_incr & (deny_cnt == 0);
 
+  // SEC_CM: CTR.REDUN
   prim_count #(
     .Width(DenyCountWidth)
   ) u_deny_count (

@@ -17,7 +17,9 @@
 `include "prim_assert.sv"
 
 module rv_plic import rv_plic_reg_pkg::*; #(
-  parameter logic [NumAlerts-1:0] AlertAsyncOn  = {NumAlerts{1'b1}},
+  parameter logic [NumAlerts-1:0] AlertAsyncOn    = {NumAlerts{1'b1}},
+  // Number of cycles a differential skew is tolerated on the alert signal
+  parameter int unsigned          AlertSkewCycles = 1,
   // OpenTitan IP standardizes on level triggered interrupts,
   // hence LevelEdgeTrig is set to all-zeroes by default.
   // Note that in case of edge-triggered interrupts, CDC handling is not
@@ -258,11 +260,15 @@ module rv_plic import rv_plic_reg_pkg::*; #(
   assign prio[157] = reg2hw.prio[157].q;
   assign prio[158] = reg2hw.prio[158].q;
   assign prio[159] = reg2hw.prio[159].q;
+  assign prio[160] = reg2hw.prio[160].q;
+  assign prio[161] = reg2hw.prio[161].q;
+  assign prio[162] = reg2hw.prio[162].q;
+  assign prio[163] = reg2hw.prio[163].q;
 
   //////////////////////
   // Interrupt Enable //
   //////////////////////
-  for (genvar s = 0; s < 160; s++) begin : gen_ie0
+  for (genvar s = 0; s < 164; s++) begin : gen_ie0
     assign ie[0][s] = reg2hw.ie0[s].q;
   end
 
@@ -288,7 +294,7 @@ module rv_plic import rv_plic_reg_pkg::*; #(
   ////////
   // IP //
   ////////
-  for (genvar s = 0; s < 160; s++) begin : gen_ip
+  for (genvar s = 0; s < 164; s++) begin : gen_ip
     assign hw2reg.ip[s].de = 1'b1; // Always write
     assign hw2reg.ip[s].d  = ip[s];
   end
@@ -360,6 +366,7 @@ module rv_plic import rv_plic_reg_pkg::*; #(
   for (genvar i = 0; i < NumAlerts; i++) begin : gen_alert_tx
     prim_alert_sender #(
       .AsyncOn(AlertAsyncOn[i]),
+      .SkewCycles(AlertSkewCycles),
       .IsFatal(1'b1)
     ) u_prim_alert_sender (
       .clk_i,
@@ -430,5 +437,7 @@ module rv_plic import rv_plic_reg_pkg::*; #(
                [*`_SEC_CM_ALERT_MAX_CYC]))
 
   // Alert assertions for reg_we onehot check
-  `ASSERT_PRIM_REG_WE_ONEHOT_ERROR_TRIGGER_ALERT(RegWeOnehotCheck_A, u_reg, alert_tx_o[0])
+  `ASSERT_PRIM_REG_WE_ONEHOT_ERROR_TRIGGER_ALERT_IN(RegWeOnehotCheck_A,
+                                                    u_reg,
+                                                    gen_alert_tx[0].u_prim_alert_sender.alert_req_i)
 endmodule
