@@ -46,6 +46,8 @@ filesets:
       - seq_lib/otp_ctrl_parallel_lc_esc_vseq.sv: {is_include_file: true}
       - seq_lib/otp_ctrl_test_access_vseq.sv: {is_include_file: true}
       - seq_lib/otp_ctrl_stress_all_vseq.sv: {is_include_file: true}
+      - seq_lib/otp_ctrl_zeroization_vseq.sv: {is_include_file: true}
+      - seq_lib/otp_ctrl_zeroization_with_checks_vseq.sv: {is_include_file: true}
     file_type: systemVerilogSource
 
 generate:

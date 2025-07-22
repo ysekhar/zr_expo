@@ -141,6 +141,23 @@ class otp_ctrl_base_vseq extends cip_base_vseq #(
     super.read_and_check_all_csrs_after_reset();
   endtask
 
+  virtual task dai_zeroize(bit [TL_DW-1:0] addr);
+    bit [TL_DW-1:0] val;
+
+    `uvm_info(`gfn, $sformatf("dai Zerorize addr %0h", addr), UVM_HIGH)
+    csr_wr(ral.direct_access_address, addr);
+    csr_wr(ral.direct_access_wdata[0], '{default: 1});
+    csr_wr(ral.direct_access_wdata[1], '{default: 1});
+
+    do_otp_wr = 1;
+
+    csr_wr(ral.direct_access_cmd, int'(otp_ctrl_top_specific_pkg::DaiZeroize));
+
+    cfg.clk_rst_vif.wait_clks($urandom_range(5, 10));
+    wait_dai_op_done();
+    // rd_and_clear_intrs();
+  endtask : dai_zeroize
+
   // this task triggers an OTP write sequence via the DAI interface
   virtual task dai_wr(bit [TL_DW-1:0] addr,
                       bit [TL_DW-1:0] wdata0,
@@ -156,6 +173,7 @@ class otp_ctrl_base_vseq extends cip_base_vseq #(
         used_dai_addrs[addr] = 1;
       end
     end
+
     addr = randomize_dai_addr(addr);
     `uvm_info(`gfn, $sformatf("dai write addr %0h, data %0h", addr, wdata0), UVM_HIGH)
     csr_wr(ral.direct_access_address, addr);
@@ -570,7 +588,8 @@ class otp_ctrl_base_vseq extends cip_base_vseq #(
 
   virtual task trigger_checks(bit [1:0]     val,
                               bit           wait_done = 1,
-                              otp_ecc_err_e ecc_err = OtpNoEccErr);
+                              otp_ecc_err_e ecc_err = OtpNoEccErr,
+                              bit           wait_backdoor = 0);
     bit [TL_DW-1:0] backdoor_rd_val, addr;
 
     // If ECC and check error happens in the same consistency check, the scb cannot predict which
@@ -599,7 +618,8 @@ class otp_ctrl_base_vseq extends cip_base_vseq #(
     end
 
     csr_wr(ral.check_trigger, val);
-    if (wait_done && val) csr_spinwait(ral.status.check_pending, 0);
+    if (wait_done && val) csr_spinwait(.ptr(ral.status.check_pending), .exp_data(0),
+                                       .backdoor(wait_backdoor));
 
     if (ecc_err != OtpNoEccErr) begin
       cfg.mem_bkdr_util_h.write32(addr, backdoor_rd_val);

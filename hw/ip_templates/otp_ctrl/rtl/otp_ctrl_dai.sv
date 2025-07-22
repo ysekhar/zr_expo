@@ -244,6 +244,11 @@ module otp_ctrl_dai
     .out_o ( {zeroized_fatal}   )
   );
 
+  part_variant_e _variant;
+  bit _zeroizable;
+  assign _variant = PartInfo[part_idx].variant;
+  assign _zeroizable = PartInfo[part_idx].zeroizable;
+
   always_comb begin : p_fsm
     state_d = state_q;
 
@@ -754,8 +759,8 @@ module otp_ctrl_dai
             // Check that the address is not out-of-bounds.
             part_sel_valid &&
             // The entire address space of a zeroizable partition can be cleared
-            (PartInfo[part_idx].variant == Buffered && base_sel_q == DaiOffset) ||
-            (PartInfo[part_idx].variant != Buffered && base_sel_q == DaiOffset)) begin
+            ((PartInfo[part_idx].variant == Buffered && base_sel_q == DaiOffset) ||
+             (PartInfo[part_idx].variant != Buffered && base_sel_q == DaiOffset))) begin
           otp_req_o = 1'b1;
           otp_cmd_o = otp_ctrl_macro_pkg::Zeroize;
           if (otp_gnt_i) begin

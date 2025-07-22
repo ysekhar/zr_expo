@@ -48,4 +48,25 @@ class otp_ctrl_base_test #(
   // the base class also looks up UVM_TEST_SEQ plusarg to create and run that seq in
   // the run_phase; as such, nothing more needs to be done
 
+  virtual function void add_message_demotes(dv_report_catcher catcher);
+    string msg;
+
+    super.add_message_demotes(catcher);
+
+    // Demote field access warnings to infos
+    msg = {
+      "\s*Trying to predict value of field 'otp_operation_done' while register",
+      "\s*'otp_ctrl_core_reg_block.intr_state' is being accessed"
+    };
+    catcher.add_change_sev("RegModel", msg, UVM_INFO);
+
+    msg = {
+      "\s*Trying to predict value of register 'otp_ctrl_core_reg_block.direct_access_regwen'",
+      "\s*while it is being accessed"
+    };
+    catcher.add_change_sev("RegModel", msg, UVM_INFO);
+
+
+  endfunction : add_message_demotes
+
 endclass : otp_ctrl_base_test

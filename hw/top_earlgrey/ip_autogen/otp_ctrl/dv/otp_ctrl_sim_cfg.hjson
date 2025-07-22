@@ -167,6 +167,16 @@
       name: "{name}_stress_all_with_rand_reset"
       reseed: 100
     }
+
+    {
+      name: otp_ctrl_zeroization
+      uvm_test_seq: otp_ctrl_zeroization_vseq
+    }
+
+    {
+      name: otp_ctrl_zeroization_with_checks
+      uvm_test_seq: otp_ctrl_zeroization_vseq
+    }
   ]
 
   // List of regressions.
