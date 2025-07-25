@@ -150,6 +150,7 @@ opentitan_test(
         tags = ["manuf"],
     ),
     deps = [
+        ":flash_info_fields",
         ":individualize",
         ":otp_fields",
         "//hw/top_earlgrey/sw/autogen:top_earlgrey",
@@ -158,6 +159,7 @@ opentitan_test(
         "//sw/device/lib/dif:lc_ctrl",
         "//sw/device/lib/dif:otp_ctrl",
         "//sw/device/lib/dif:rstmgr",
+        "//sw/device/lib/testing:flash_ctrl_testutils",
         "//sw/device/lib/testing:lc_ctrl_testutils",
         "//sw/device/lib/testing:rstmgr_testutils",
         "//sw/device/lib/testing/json:provisioning_data",
@@ -224,6 +226,7 @@ opentitan_test(
         "//hw/top:otp_ctrl_c_regs",
         "//hw/top_earlgrey/sw/autogen:top_earlgrey",
         "//sw/device/lib/base:status",
+        "//sw/device/lib/crypto/drivers:entropy",
         "//sw/device/lib/dif:flash_ctrl",
         "//sw/device/lib/dif:otp_ctrl",
         "//sw/device/lib/dif:rstmgr",

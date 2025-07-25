@@ -57,6 +57,7 @@ opentitan_binary(
         "//sw/device/lib/arch:device",
         "//sw/device/lib/base:abs_mmio",
         "//sw/device/lib/base:macros",
+        "//sw/device/lib/crypto/drivers:entropy",
         "//sw/device/lib/dif:flash_ctrl",
         "//sw/device/lib/dif:lc_ctrl",
         "//sw/device/lib/dif:otp_ctrl",
@@ -72,7 +73,6 @@ opentitan_binary(
         "//sw/device/lib/testing/test_framework:ottf_test_config",
         "//sw/device/lib/testing/test_framework:status",
         "//sw/device/lib/testing/test_framework:ujson_ottf",
-        "//sw/device/silicon_creator/manuf/data/ast:fake",
         "//sw/device/silicon_creator/manuf/lib:flash_info_fields",
         "//sw/device/silicon_creator/manuf/lib:individualize",
         "//sw/device/silicon_creator/manuf/lib:otp_fields",
@@ -97,6 +97,7 @@ opentitan_binary(
         "//hw/top_earlgrey/sw/autogen:top_earlgrey",
         "//sw/device/lib/arch:device",
         "//sw/device/lib/base:macros",
+        "//sw/device/lib/crypto/drivers:entropy",
         "//sw/device/lib/dif:flash_ctrl",
         "//sw/device/lib/dif:lc_ctrl",
         "//sw/device/lib/dif:otp_ctrl",
@@ -169,7 +170,7 @@ opentitan_test(
         test_cmd = """
             --provisioning-sram-elf={sram_cp_provision}
             --test-sram-elf={sram_cp_provision_functest}
-        """ + CP_PROVISIONING_INPUTS,
+        """,
         test_harness = "//sw/host/tests/manuf/cp_provision_functest",
     ),
 )
@@ -190,7 +191,9 @@ opentitan_test(
             ":flash_info_permissions",
             "//hw/top_earlgrey/sw/autogen:top_earlgrey",
             "//sw/device/lib/arch:device",
+            "//sw/device/lib/base:abs_mmio",
             "//sw/device/lib/base:macros",
+            "//sw/device/lib/crypto/drivers:entropy",
             "//sw/device/lib/dif:flash_ctrl",
             "//sw/device/lib/dif:otp_ctrl",
             "//sw/device/lib/dif:pinmux",
@@ -240,6 +243,7 @@ cc_library(
     srcs = ["tpm_personalize_ext.c"],
     deps = [
         ":personalize_ext",
+        "//sw/device/lib/crypto/drivers:entropy",
         "//sw/device/lib/dif:flash_ctrl",
         "//sw/device/lib/runtime:log",
         "//sw/device/lib/testing/test_framework:status",
@@ -322,6 +326,7 @@ manifest(d = {
             "//sw/device/lib/testing/test_framework:status",
             "//sw/device/lib/testing/test_framework:ujson_ottf",
             "//sw/device/silicon_creator/lib:attestation",
+            "//sw/device/silicon_creator/lib:boot_data",
             "//sw/device/silicon_creator/lib:otbn_boot_services",
             "//sw/device/silicon_creator/lib/base:chip",
             "//sw/device/silicon_creator/lib/base:util",
@@ -333,10 +338,12 @@ manifest(d = {
             "//sw/device/silicon_creator/lib/drivers:hmac",
             "//sw/device/silicon_creator/lib/drivers:keymgr",
             "//sw/device/silicon_creator/lib/drivers:kmac",
+            "//sw/device/silicon_creator/lib/ownership:owner_block",
+            "//sw/device/silicon_creator/lib/ownership:ownership_key",
             "//sw/device/silicon_creator/manuf/lib:flash_info_fields",
             "//sw/device/silicon_creator/manuf/lib:individualize_sw_cfg_{}".format(config["otp"]),
             "//sw/device/silicon_creator/manuf/lib:personalize",
-        ] + config["dice_libs"] + config["device_ext_libs"],
+        ] + config["dice_libs"] + config["device_ext_libs"] + config.get("ownership_libs", []),
     )
     for sku, config in EARLGREY_SKUS.items()
 ]

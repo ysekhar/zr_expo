@@ -27,6 +27,7 @@ EARLGREY_SKUS = {
         "dice_libs": ["//sw/device/silicon_creator/lib/cert:dice"],
         "host_ext_libs": ["@provisioning_exts//:default_ft_ext_lib"],
         "device_ext_libs": ["@provisioning_exts//:default_perso_fw_ext"],
+        "ownership_libs": ["//sw/device/silicon_creator/lib/ownership:test_owner"],
         "rom_ext": "//sw/device/silicon_creator/rom_ext/sival:rom_ext_fake_prod_signed_slot_b",
         "owner_fw": "//sw/device/silicon_owner/bare_metal:bare_metal_slot_b",
     },
@@ -53,23 +54,23 @@ EARLGREY_SKUS = {
             "//sw/device/silicon_creator/lib/cert:tpm_ek_template_library",
             "//sw/device/silicon_creator/manuf/base:tpm_perso_fw_ext",
         ],
+        "ownership_libs": ["//sw/device/silicon_creator/lib/ownership:test_owner"],
         "rom_ext": "//sw/device/silicon_creator/rom_ext/sival:rom_ext_fake_prod_signed_slot_b",
         "owner_fw": "//sw/device/silicon_owner/bare_metal:bare_metal_slot_b",
     },
 } | EXT_EARLGREY_SKUS
 
-_DEVICE_ID_AND_TEST_TOKENS = """
-  --device-id="0x11111111_22222222_33333333_44444444_55555555_66666666_77777777_88888888"
+_TEST_TOKENS = """
   --test-unlock-token="0x11111111_11111111_11111111_11111111"
   --test-exit-token="0x11111111_11111111_11111111_11111111"
 """
 
-CP_PROVISIONING_INPUTS = _DEVICE_ID_AND_TEST_TOKENS + """
-  --manuf-state="0x00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000"
+CP_PROVISIONING_INPUTS = _TEST_TOKENS + """
   --wafer-auth-secret="0x00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000"
 """
 
-FT_PROVISIONING_INPUTS = _DEVICE_ID_AND_TEST_TOKENS + """
+FT_PROVISIONING_INPUTS = _TEST_TOKENS + """
+  --device-id="0x11111111_22222222_33333333_44444444_55555555_66666666_77777777_88888888"
   --target-mission-mode-lc-state="prod"
   --rma-unlock-token="0x01234567_89abcdef_01234567_89abcdef"
   --rom-ext-measurement="0x11111111_11111111_11111111_11111111_11111111_11111111_11111111_11111111"

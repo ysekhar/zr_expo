@@ -5,6 +5,8 @@
 #include <stdint.h>
 
 #include "sw/device/lib/arch/device.h"
+#include "sw/device/lib/base/abs_mmio.h"
+#include "sw/device/lib/crypto/drivers/entropy.h"
 #include "sw/device/lib/dif/dif_flash_ctrl.h"
 #include "sw/device/lib/dif/dif_otp_ctrl.h"
 #include "sw/device/lib/runtime/hart.h"
@@ -34,7 +36,7 @@ static dif_otp_ctrl_t otp_ctrl;
 static dif_pinmux_t pinmux;
 
 static manuf_ft_individualize_data_t in_data;
-static uint32_t device_id[kHwCfgDeviceIdSizeIn32BitWords];
+static uint32_t cp_device_id[kFlashInfoFieldCpDeviceIdSizeIn32BitWords];
 static uint32_t ast_cfg_data[kFlashInfoAstCalibrationDataSizeIn32BitWords];
 
 /**
@@ -55,18 +57,19 @@ static status_t peripheral_handles_init(void) {
  * Print data stored in flash info page 0 to console for manual verification
  * purposes during silicon bring-up.
  */
-static status_t print_flash_info_0_data_to_console(void) {
+static status_t read_and_print_flash_info_0_data(void) {
   uint32_t byte_address = 0;
   TRY(flash_ctrl_testutils_info_region_setup_properties(
-      &flash_ctrl_state, kFlashInfoFieldDeviceId.page,
-      kFlashInfoFieldDeviceId.bank, kFlashInfoFieldDeviceId.partition,
+      &flash_ctrl_state, kFlashInfoFieldCpDeviceId.page,
+      kFlashInfoFieldCpDeviceId.bank, kFlashInfoFieldCpDeviceId.partition,
       kFlashInfoPage0Permissions, &byte_address));
 
-  LOG_INFO("Device ID:");
-  TRY(manuf_flash_info_field_read(&flash_ctrl_state, kFlashInfoFieldDeviceId,
-                                  device_id, kHwCfgDeviceIdSizeIn32BitWords));
+  LOG_INFO("CP Device ID:");
+  TRY(manuf_flash_info_field_read(&flash_ctrl_state, kFlashInfoFieldCpDeviceId,
+                                  cp_device_id,
+                                  kFlashInfoFieldCpDeviceIdSizeIn32BitWords));
   for (size_t i = 0; i < kHwCfgDeviceIdSizeIn32BitWords; ++i) {
-    LOG_INFO("0x%08x", device_id[i]);
+    LOG_INFO("0x%08x", cp_device_id[i]);
   }
 
   LOG_INFO("AST Calibration Values:");
@@ -78,6 +81,13 @@ static status_t print_flash_info_0_data_to_console(void) {
   }
 
   return OK_STATUS();
+}
+
+static void manually_init_ast(uint32_t *data) {
+  for (size_t i = 0; i < kFlashInfoAstCalibrationDataSizeIn32BitWords; ++i) {
+    abs_mmio_write32(TOP_EARLGREY_AST_BASE_ADDR + i * sizeof(uint32_t),
+                     data[i]);
+  }
 }
 
 /**
@@ -103,13 +113,15 @@ static status_t provision(ujson_t *uj) {
 
 bool test_main(void) {
   CHECK_STATUS_OK(peripheral_handles_init());
+  CHECK_STATUS_OK(entropy_complex_init());
   pinmux_testutils_init(&pinmux);
   ottf_console_init();
   ujson_t uj = ujson_ottf_console();
 
-  // Print flash data to console (for manual verification purposes) and perform
-  // provisioning operations.
-  CHECK_STATUS_OK(print_flash_info_0_data_to_console());
+  // Read and log flash data to console (for manual verification purposes),
+  // manually init AST, and perform provisioning operations.
+  CHECK_STATUS_OK(read_and_print_flash_info_0_data());
+  manually_init_ast(ast_cfg_data);
   CHECK_STATUS_OK(provision(&uj));
 
   // Halt the CPU here to enable JTAG to perform an LC transition to mission
