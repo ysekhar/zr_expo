@@ -715,7 +715,7 @@ class otp_ctrl_scoreboard #(type CFG_T = otp_ctrl_env_cfg)
           // LC partition cannot be access via DAI
           if (part_idx == LifeCycleIdx) begin
             predict_err(OtpDaiErrIdx, OtpAccessError);
-            if (item.a_data == DaiRead) predict_rdata(is_secret(dai_addr), 0, 0);
+            if (item.a_data == DaiRead) predict_rdata(is_granule_64(dai_addr), 0, 0);
           end else begin
             // Collect coverage.
             if (cfg.en_cov) begin
@@ -743,24 +743,25 @@ class otp_ctrl_scoreboard #(type CFG_T = otp_ctrl_env_cfg)
                     // Secret partitions cal digest can also lock read access.
                     // However, digest is always readable except SW partitions (Issue #5752).
                     (is_secret(dai_addr) && get_digest_reg_val(part_idx) != 0 &&
-                     !is_digest(dai_addr)) ||
+                     !(is_digest(dai_addr) || is_zeroized_addr(dai_addr))) ||
                     // If the partition has creator key material and lc_creator_seed_sw_rw is
                     // disable, then return access error.
                     (PartInfo[part_idx].iskeymgr_creator && !is_digest(dai_addr) &&
                      cfg.otp_ctrl_vif.lc_creator_seed_sw_rw_en_i != lc_ctrl_pkg::On)) begin
                   predict_err(OtpDaiErrIdx, OtpAccessError);
-                  predict_rdata(is_secret(dai_addr) || is_digest(dai_addr), 0, 0);
+                  predict_rdata(is_granule_64(dai_addr), 0, 0);
                 end else if (sw_read_lock ||
                     // Secret partitions cal digest can also lock read access.
                     // However, digest is always readable except SW partitions (Issue #5752).
                     (is_secret(dai_addr) && get_digest_reg_val(part_idx) != 0 &&
-                     !is_digest(dai_addr)) ||
+                     !(is_digest(dai_addr) || is_zeroized_addr(dai_addr))) ||
                     // If the partition has owner key material and lc_owner_seed_sw_rw is disable,
                     // then return access error.
-                    (PartInfo[part_idx].iskeymgr_owner && !is_digest(dai_addr) &&
+                    (PartInfo[part_idx].iskeymgr_owner &&
+                     !(is_digest(dai_addr) || is_zeroized_addr(dai_addr)) &&
                      cfg.otp_ctrl_vif.lc_owner_seed_sw_rw_en_i != lc_ctrl_pkg::On)) begin
                   predict_err(OtpDaiErrIdx, OtpAccessError);
-                  predict_rdata(is_secret(dai_addr) || is_digest(dai_addr), 0, 0);
+                  predict_rdata(is_granule_64(dai_addr), 0, 0);
 
                 end else begin
                   bit [TL_DW-1:0] read_out0, read_out1;
@@ -770,12 +771,12 @@ class otp_ctrl_scoreboard #(type CFG_T = otp_ctrl_env_cfg)
                   // Backdoor read to check if there is any ECC error.
                   if (part_has_integrity(part_idx)) begin
                     ecc_err = read_a_word_with_ecc(dai_addr, read_out0);
-                    if (is_secret(dai_addr) || is_digest(dai_addr)) begin
+                    if (is_granule_64(dai_addr)) begin
                       ecc_err = max2(read_a_word_with_ecc(dai_addr + 4, read_out1), ecc_err);
                     end
                   end else begin
                     ecc_err = read_a_word_with_ecc_raw(dai_addr, read_out0);
-                    if (is_secret(dai_addr) || is_digest(dai_addr)) begin
+                    if (is_granule_64(dai_addr)) begin
                       ecc_err = max2(read_a_word_with_ecc_raw(dai_addr + 4, read_out1), ecc_err);
                     end
                   end
@@ -783,7 +784,7 @@ class otp_ctrl_scoreboard #(type CFG_T = otp_ctrl_env_cfg)
                   if (ecc_err == OtpEccCorrErr && part_has_integrity(part_idx)) begin
                     predict_err(OtpDaiErrIdx, OtpMacroEccCorrError);
                     backdoor_update_otp_array(dai_addr);
-                    predict_rdata(is_secret(dai_addr) || is_digest(dai_addr),
+                    predict_rdata(is_granule_64(dai_addr),
                                   otp_a[otp_addr], otp_a[otp_addr+1]);
                   end else if (ecc_err == OtpEccUncorrErr && part_has_integrity(part_idx)) begin
                     predict_err(OtpDaiErrIdx, OtpMacroEccUncorrError);
@@ -796,15 +797,13 @@ class otp_ctrl_scoreboard #(type CFG_T = otp_ctrl_env_cfg)
                   end else if (ecc_err inside {OtpEccCorrErr, OtpEccUncorrErr} &&
                                !part_has_integrity(part_idx)) begin
                     predict_no_err(OtpDaiErrIdx);
-                    predict_rdata(is_secret(dai_addr) || is_digest(dai_addr),
-                                  read_out0, read_out1);
+                    predict_rdata(is_granule_64(dai_addr), read_out0, read_out1);
                     // do not check direct_access_rdata_* on ECC errors in
                     // non-integrity partitions
                     check_dai_rd_data = 0;
                   end else begin
                     predict_no_err(OtpDaiErrIdx);
-                    predict_rdata(is_secret(dai_addr) || is_digest(dai_addr),
-                                  otp_a[otp_addr], otp_a[otp_addr+1]);
+                    predict_rdata(is_granule_64(dai_addr), otp_a[otp_addr], otp_a[otp_addr+1]);
                   end
                 end
               end
@@ -825,6 +824,8 @@ class otp_ctrl_scoreboard #(type CFG_T = otp_ctrl_env_cfg)
                 end else if (is_write_locked || (PartInfo[part_idx].iskeymgr_owner &&
                              !is_digest(dai_addr) &&
                              cfg.otp_ctrl_vif.lc_owner_seed_sw_rw_en_i != lc_ctrl_pkg::On)) begin
+                  predict_err(OtpDaiErrIdx, OtpAccessError);
+                end else if (PartInfo[part_idx].zeroizable && is_zeroized_addr(dai_addr)) begin
                   predict_err(OtpDaiErrIdx, OtpAccessError);
                 end else begin
                   predict_no_err(OtpDaiErrIdx);
@@ -1163,7 +1164,7 @@ class otp_ctrl_scoreboard #(type CFG_T = otp_ctrl_env_cfg)
 
     otp_a[otp_addr] = readout_word;
 
-    if (is_digest(dai_addr)) begin
+    if (is_digest(dai_addr) || is_zeroized_addr(dai_addr)) begin
       otp_a[otp_addr+1] = readout_word1;
     end else if (is_secret(dai_addr)) begin
       bit [TL_DW*2-1:0] mem_rd_val, descrambled_val;
