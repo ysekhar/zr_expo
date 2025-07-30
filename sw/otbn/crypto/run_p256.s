@@ -1,3 +1,7 @@
+/* Copyright zeroRISC Inc. */
+/* Licensed under the Apache License, Version 2.0, see LICENSE for details. */
+/* SPDX-License-Identifier: Apache-2.0 */
+
 /* Copyright lowRISC contributors (OpenTitan project). */
 /* Licensed under the Apache License, Version 2.0, see LICENSE for details. */
 /* SPDX-License-Identifier: Apache-2.0 */
@@ -77,15 +81,20 @@ start:
   addi  x3, x0, MODE_SIDELOAD_ECDH
   beq   x2, x3, shared_key_from_seed
 
+  /* Remask the caller-provided secret key shares in-place. */
+  la    x12, d0_io
+  la    x13, d1_io
+  jal   x1, p256_scalar_remask
+
   /* Copy the caller-provided secret key shares into scratchpad memory.
        dmem[d0] <= dmem[d0_io]
        dmem[d1] <= dmem[d1_io] */
-  la       x13, d0_io
-  la       x14, d0
-  jal      x1, copy_share
-  la       x13, d1_io
-  la       x14, d1
-  jal      x1, copy_share
+  la    x13, d0_io
+  la    x14, d0
+  jal   x1, copy_share
+  la    x13, d1_io
+  la    x14, d1
+  jal   x1, copy_share
 
   addi  x3, x0, MODE_SIGN
   beq   x2, x3, ecdsa_sign
