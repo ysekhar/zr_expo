@@ -1,3 +1,7 @@
+/* Copyright zeroRISC Inc. */
+/* Licensed under the Apache License, Version 2.0, see LICENSE for details. */
+/* SPDX-License-Identifier: Apache-2.0 */
+
 /* Copyright lowRISC contributors (OpenTitan project). */
 /* Licensed under the Apache License, Version 2.0, see LICENSE for details. */
 /* SPDX-License-Identifier: Apache-2.0 */
@@ -1144,6 +1148,110 @@ proj_to_affine_p384:
   jal       x1, p384_mulmod_p
   bn.mov    w27, w16
   bn.mov    w28, w17
+
+  ret
+
+/**
+ * Helper routine to remask a scalar in-place.
+ *
+ * @param[in]     x12: d0, pointer to share 0 of 448-bit masked scalar.
+ * @param[in]     x13: d1, pointer to share 1 of 448-bit masked scalar.
+ * @param[in,out] dmem[d0..d0+64]: share 0 of 448-bit masked scalar.
+ * @param[in,out] dmem[d1..d1+64]: share 1 of 448-bit masked scalar.
+ *
+ * clobbered registers: x3-x4, w1-w13, w31
+ * clobbered flag groups: none
+ */
+.globl p384_scalar_remask
+p384_scalar_remask:
+  /* Initialize all-zero register. */
+  bn.xor    w31, w31, w31
+
+  /* Get a fresh 448-bit mask m from URND.
+       [w8,w9] = URND() */
+  bn.wsrr   w8, URND
+  bn.wsrr   w9, URND
+  bn.rshi   w9, w31, w9 >> 64
+
+  /* Load the curve order n.
+     [w12,w13] <= dmem[p384_n] = n */
+  li        x4, 12
+  la        x3, p384_n
+  bn.lid    x4++, 0(x3)
+  bn.lid    x4++, 32(x3)
+
+  /* Compute (n << 64).
+       [w10,w11] <= [w12,w13] << 64 = n << 64 */
+  bn.rshi   w10, w12, w31 >> 192
+  bn.rshi   w11, w13, w12 >> 192
+
+  /* Reduce m modulo (n << 64) with a conditional subtraction.
+       [w4,w5] <= m mod (n << 64) */
+  bn.sub    w6, w8, w12
+  bn.subb   w7, w9, w13
+  bn.sel    w4, w8, w6, FG0.C
+  bn.sel    w5, w9, w7, FG0.C
+  bn.sub    w1, w1, w1  /* dummy instruction to clear flags */
+
+  /* Randomize registers before loading secret share. */
+  bn.wsrr   w2, URND
+  bn.wsrr   w3, URND
+  bn.wsrr   w6, URND
+  bn.wsrr   w7, URND
+  bn.wsrr   w8, URND
+  bn.wsrr   w9, URND
+
+  /* [w6,w7] <= dmem[d0] */
+  li       x3, 6
+  bn.lid   x3++, 0(x12)
+  bn.lid   x3, 32(x12)
+
+  /* [w8,w9] <= d0 + m */
+  bn.add    w8, w6, w4
+  bn.addc   w9, w7, w5
+  bn.sub    w1, w1, w1  /* dummy instruction to clear flags */
+
+  /* [w2,w3] <= (d0 + m) mod (n << 64). */
+  bn.sub    w6, w8, w10
+  bn.subb   w7, w9, w11
+  bn.sel    w2, w8, w6, FG0.C
+  bn.sel    w3, w9, w7, FG0.C
+  bn.sub    w1, w1, w1  /* dummy instruction to clear flags */
+
+  /* dmem[d0] <= [w2,w3] */
+  li       x3, 2
+  bn.sid   x3++, 0(x12)
+  bn.sid   x3, 32(x12)
+
+  /* Randomize registers before loading secret share. */
+  bn.wsrr   w2, URND
+  bn.wsrr   w3, URND
+  bn.wsrr   w6, URND
+  bn.wsrr   w7, URND
+  bn.wsrr   w8, URND
+  bn.wsrr   w9, URND
+
+  /* [w6,w7] <= dmem[d1] */
+  li       x3, 6
+  bn.lid   x3++, 0(x13)
+  bn.lid   x3, 32(x13)
+
+  /* [w8,w9] <= d1 - m */
+  bn.sub    w8, w6, w4
+  bn.subb   w9, w7, w5
+
+  /* [w2,w3] <= (d1 - m) mod (n << 64). */
+  bn.add    w6, w8, w10, FG1
+  bn.addc   w7, w9, w11, FG1
+  bn.sel    w2, w6, w8, FG0.C
+  bn.sel    w3, w7, w9, FG0.C
+  bn.sub    w1, w1, w1  /* dummy instruction to clear flags */
+  bn.sub    w1, w1, w1, FG1  /* dummy instruction to clear flags */
+
+  /* dmem[d1] <= [w2,w3] */
+  li       x3, 2
+  bn.sid   x3++, 0(x13)
+  bn.sid   x3, 32(x13)
 
   ret
 

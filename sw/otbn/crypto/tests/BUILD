@@ -414,6 +414,17 @@ otbn_sim_test_suite(
 )
 
 otbn_sim_test(
+    name = "p384_scalar_remask_test",
+    srcs = [
+        "p384_scalar_remask_test.s",
+    ],
+    exp = "p384_scalar_remask_test.exp",
+    deps = [
+        "//sw/otbn/crypto:p384_base",
+    ],
+)
+
+otbn_sim_test(
     name = "p384_base_mult_test",
     srcs = [
         "p384_base_mult_test.s",
