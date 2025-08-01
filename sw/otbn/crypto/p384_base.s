@@ -1187,8 +1187,8 @@ p384_scalar_remask:
 
   /* Reduce m modulo (n << 64) with a conditional subtraction.
        [w4,w5] <= m mod (n << 64) */
-  bn.sub    w6, w8, w12
-  bn.subb   w7, w9, w13
+  bn.sub    w6, w8, w10
+  bn.subb   w7, w9, w11
   bn.sel    w4, w8, w6, FG0.C
   bn.sel    w5, w9, w7, FG0.C
   bn.sub    w1, w1, w1  /* dummy instruction to clear flags */

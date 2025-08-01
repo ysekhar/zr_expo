@@ -35,8 +35,8 @@
   bn.lid    x3, 32(x2)
 
   /* [w10,w11] <= n << 64 */
-  bn.rshi   w10, w29, w31 >> 192
-  bn.rshi   w11, w31, w29 >> 192
+  bn.rshi   w10, w12, w31 >> 192
+  bn.rshi   w11, w13, w12 >> 192
 
   /* Add shares to unmask and then [w18,w19] <= (d0 + d1) mod (n << 64) */
   bn.add  w0, w0, w2
