@@ -1,3 +1,7 @@
+# Copyright zeroRISC Inc.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
 # Copyright lowRISC contributors (OpenTitan project).
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
@@ -204,6 +208,17 @@ otbn_sim_test(
     ],
 )
 
+otbn_sim_test(
+    name = "p256_scalar_remask_test",
+    srcs = [
+        "p256_scalar_remask_test.s",
+    ],
+    exp = "p256_scalar_remask_test.exp",
+    deps = [
+        "//sw/otbn/crypto:p256_base",
+    ],
+)
+
 otbn_consttime_test(
     name = "p256_base_mult_consttime",
     subroutine = "p256_base_mult",
@@ -395,6 +410,17 @@ otbn_sim_test_suite(
         "p256_check_public_key_x_too_large.hjson",
         "p256_check_public_key_y_too_large.hjson",
         "p256_isoncurve_valid.hjson",
+    ],
+)
+
+otbn_sim_test(
+    name = "p384_scalar_remask_test",
+    srcs = [
+        "p384_scalar_remask_test.s",
+    ],
+    exp = "p384_scalar_remask_test.exp",
+    deps = [
+        "//sw/otbn/crypto:p384_base",
     ],
 )
 
